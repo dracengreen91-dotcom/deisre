@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10172a">
+  <title>Break Time Arcade</title>
+  <style>
+    :root { color-scheme: dark; --bg: #10172a; --panel: #1b2540; --ink: #f5f7ff; --muted: #bec8e3; --accent: #8ee3c2; --accent2: #ffc979; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at top, #26355b, var(--bg) 58%); color: var(--ink); font: 16px/1.5 system-ui, sans-serif; }
+    header, main, footer { width: min(100% - 2rem, 960px); margin-inline: auto; }
+    header { padding: 2.5rem 0 1rem; text-align: center; }
+    h1 { margin: 0; font-size: clamp(2.2rem, 7vw, 4rem); letter-spacing: -.04em; }
+    h2 { margin-top: 0; }
+    .tagline { color: var(--muted); margin: .4rem 0 0; }
+    main { display: grid; gap: 1.25rem; padding: 1rem 0 2rem; }
+    .panel { padding: clamp(1rem, 4vw, 1.6rem); background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid #ffffff20; border-radius: 1.25rem; box-shadow: 0 14px 40px #0003; }
+    .game-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .game-top h2 { margin: 0; }
+    .stats { color: var(--muted); }
+    button, .movie-link { font: inherit; }
+    .action { border: 0; border-radius: .7rem; background: var(--accent); color: #10251e; padding: .65rem 1rem; font-weight: 750; cursor: pointer; }
+    .action:hover { filter: brightness(1.08); }
+    .action:focus-visible, .card:focus-visible, a:focus-visible { outline: 3px solid var(--accent2); outline-offset: 3px; }
+    .board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; max-width: 560px; margin: 1.1rem auto .5rem; }
+    .card { min-height: clamp(62px, 15vw, 105px); border: 1px solid #ffffff2a; border-radius: .85rem; background: #2b3a60; color: var(--ink); font-size: clamp(1.6rem, 6vw, 2.5rem); cursor: pointer; transition: transform .15s, background .15s; }
+    .card:hover:not(:disabled) { transform: translateY(-2px); background: #3a4d79; }
+    .card.revealed, .card.matched { background: #315a58; }
+    .card:disabled { cursor: default; }
+    #game-message { min-height: 1.5em; text-align: center; color: var(--accent); font-weight: 700; }
+    .movies { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .8rem; }
+    .movie-link { display: block; height: 100%; padding: 1rem; border-radius: .8rem; background: #ffffff0b; border: 1px solid #ffffff20; color: var(--ink); text-decoration: none; }
+    .movie-link:hover { border-color: var(--accent); }
+    .movie-link strong { display: block; color: var(--accent2); font-size: 1.05rem; }
+    .movie-link span { display: block; margin-top: .35rem; color: var(--muted); font-size: .92rem; }
+    .note, footer { color: var(--muted); font-size: .9rem; }
+    .note { margin-bottom: 0; }
+    footer { padding: 0 0 2rem; text-align: center; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Break Time Arcade</h1>
+    <p class="tagline">A little brain break: play a game or explore classic films.</p>
+  </header>
+  <main>
+    <section class="panel" aria-labelledby="game-title">
+      <div class="game-top">
+        <h2 id="game-title">🧠 Emoji Match</h2>
+        <div class="stats" aria-live="polite">Moves: <strong id="moves">0</strong> · Matches: <strong id="matches">0</strong>/6</div>
+        <button class="action" id="restart" type="button">New game</button>
+      </div>
+      <p>Find all six matching pairs. Pick two cards to flip them over.</p>
+      <div class="board" id="board" aria-label="Emoji matching game"></div>
+      <p id="game-message" aria-live="polite"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="movies-title">
+      <h2 id="movies-title">🎬 Classic movie collections</h2>
+      <div class="movies">
+        <a class="movie-link" href="https://www.loc.gov/collections/national-screening-room/" target="_blank" rel="noopener noreferrer">
+          <strong>Library of Congress: National Screening Room</strong>
+          <span>Explore historical films from the Library of Congress. Check each film’s viewing and rights information.</span>
+        </a>
+        <a class="movie-link" href="https://archive.org/details/feature_films" target="_blank" rel="noopener noreferrer">
+          <strong>Internet Archive: Feature Films</strong>
+          <span>Browse a collection of older feature films. Rights can differ by title, so check the item details before watching.</span>
+        </a>
+      </div>
+      <p class="note">These are links to outside collections, not hosted videos. Follow your school’s device and network rules, and only watch items that are available to you.</p>
+    </section>
+  </main>
+  <footer>Made for fun and learning. Take breaks and follow your school’s rules.</footer>
+  <script>
+    (() => {
+      const emojis = ['🚀', '🌈', '🐙', '🍉', '🎸', '🦊'];
+      const board = document.querySelector('#board');
+      const movesLabel = document.querySelector('#moves');
+      const matchesLabel = document.querySelector('#matches');
+      const message = document.querySelector('#game-message');
+      let first = null;
+      let locked = false;
+      let moves = 0;
+      let matches = 0;
+      let turn = 0;
+
+      function startGame() {
+        turn++;
+        const thisTurn = turn;
+        first = null;
+        locked = false;
+        moves = 0;
+        matches = 0;
+        movesLabel.textContent = '0';
+        matchesLabel.textContent = '0';
+        message.textContent = '';
+        board.replaceChildren();
+        const cards = [...emojis, ...emojis].sort(() => Math.random() - 0.5);
+        cards.forEach((emoji, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'card';
+          button.textContent = '❔';
+          button.setAttribute('aria-label', `Hidden card ${index + 1}`);
+          button.dataset.emoji = emoji;
+          button.addEventListener('click', () => reveal(button, thisTurn));
+          board.append(button);
+        });
+      }
+
+      function reveal(card, thisTurn) {
+        if (locked || card.disabled || card === first) return;
+        card.textContent = card.dataset.emoji;
+        card.classList.add('revealed');
+        card.setAttribute('aria-label', card.dataset.emoji);
+        if (!first) {
+          first = card;
+          return;
+        }
+        moves++;
+        movesLabel.textContent = String(moves);
+        const previous = first;
+        first = null;
+        if (previous.dataset.emoji === card.dataset.emoji) {
+          previous.classList.add('matched');
+          card.classList.add('matched');
+          previous.disabled = true;
+          card.disabled = true;
+          matches++;
+          matchesLabel.textContent = String(matches);
+          if (matches === emojis.length) message.textContent = `You found them all in ${moves} moves! Nice work!`;
+        } else {
+          locked = true;
+          window.setTimeout(() => {
+            if (turn !== thisTurn) return;
+            previous.textContent = '❔';
+            card.textContent = '❔';
+            previous.classList.remove('revealed');
+            card.classList.remove('revealed');
+            previous.setAttribute('aria-label', `Hidden card ${[...board.children].indexOf(previous) + 1}`);
+            card.setAttribute('aria-label', `Hidden card ${[...board.children].indexOf(card) + 1}`);
+            locked = false;
+          }, 750);
+        }
+      }
+      document.querySelector('#restart').addEventListener('click', startGame);
+      startGame();
+    })();
+  </script>
+</body>
+</html>
